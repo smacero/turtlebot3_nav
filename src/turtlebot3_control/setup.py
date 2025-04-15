@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'square = turtlebot3_control.square:main'
+            'square = turtlebot3_control.square.square:main',
+            'fast_hash = turtlebot3_control.fast_hash.fast_hash:main'
         ],
     },
 )

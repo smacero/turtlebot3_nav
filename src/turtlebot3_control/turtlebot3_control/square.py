@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from scipy.spatial.transform import Rotation as R
+# from scipy.spatial.transform import Rotation as R
 
 # robot spawns in at x = -1.999464 y = -0.500002 z = 0.008510 roll = 0.000105 pitch = 0.006040
 
@@ -82,20 +82,20 @@ class Square(Node):
             while angle_error > math.pi: angle_error -= 2*math.pi
             while angle_error < -math.pi: angle_error += 2*math.pi
             
-            cmd.angular.z = self.angular_speed * angle_error # slow down as goal angle is approached
-            cmd.linear.x = min(self.linear_speed * distance, 0.2)
+            cmd.angular.z = self.angular_speed * angle_error # Slow down as goal ange is approached: maybe try changing this 
+            cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
             
-        else: # Once at waypoint, start going to next 
+        else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
             heading_error = self.goal_heading - self.heading
             while heading_error > math.pi: heading_error -= 2*math.pi
             while heading_error < -math.pi: heading_error += 2*math.pi
             
-            if abs(heading_error) > self.heading_threshold:
+            if abs(heading_error) > self.heading_threshold: 
                 cmd.angular.z = self.angular_speed * heading_error
             else:
                 # Move to next waypoint
-                self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints)
+                self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
                 if self.current_waypoint == 0:
                     self.get_logger().info('Square path completed!')
                     self.destroy_node()

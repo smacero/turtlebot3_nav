@@ -23,13 +23,29 @@ class Square(Node):
         self.get_logger().info('Starting square path...')
         
         # Define square path waypoints
+        # self.waypoints = [
+        #     (-2.0, -0.5),    # Starting/spawn position
+        #     (-1.5, -1.5),    # First corner
+        #     (1.5, -1.5),     # Second corner
+        #     (1.5, 1.5),      # Third corner
+        #     (-1.5, 1.5),     # Fourth corner
+        #     (-2.0, -0.5)     # Return to start
+        # ]
         self.waypoints = [
             (-2.0, -0.5),    # Starting/spawn position
             (-1.5, -1.5),    # First corner
             (1.5, -1.5),     # Second corner
-            (1.5, 1.5),      # Third corner
-            (-1.5, 1.5),     # Fourth corner
-            (-2.0, -0.5)     # Return to start
+            (1.5, -0.5) ,    # line up at column 1
+            (-2.0, -0.5),    # end of column 1
+            (-2.0, 0.5),     # line up at column 2
+            (1.5, 0.5),       # end of column 2
+            (1.5, 1.5),      # line up at top left edge of env
+            (0.5, 1.5),      # line up at row 1
+            (0.5, -1.5),       # end of row 1 
+            (-0.5, -1.5),    # line up at row 2
+            (-0.5, 1.5),      # end of row 2
+            (-1.5, 1.5),     # line up at bottom left edge of env
+            (-2.0, -0.5),    # return to start
         ]
         self.current_waypoint = 0
 
@@ -40,10 +56,10 @@ class Square(Node):
         self.goal_heading = 0.0
 
         # Control parameters
-        self.linear_speed = 1.5
-        self.angular_speed = 0.5
-        self.distance_threshold = 0.05
-        self.heading_threshold = 0.05
+        self.linear_speed = 2
+        self.angular_speed = 0.7
+        self.distance_threshold = 0.1
+        self.heading_threshold = 0.1
 
         # ROS setup
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)

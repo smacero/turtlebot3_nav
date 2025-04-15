@@ -1,5 +1,10 @@
-# get pose at t=0 of turtlebot with gazebo_msgs/
-
+# TODO: store initial pose at beginning and once path is complete, 
+# check if robot is at the same position as the initial pose and print error
+# check orientation and adjust to be same as initial pose
+'''ISSUES
+lin velocity is approx zero randomly during segments
+ang velocity control is still not great
+'''
 import math
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Twist
@@ -35,7 +40,7 @@ class Square(Node):
         self.goal_heading = 0.0
 
         # Control parameters
-        self.linear_speed = 0.2
+        self.linear_speed = 1.5
         self.angular_speed = 0.5
         self.distance_threshold = 0.05
         self.heading_threshold = 0.05

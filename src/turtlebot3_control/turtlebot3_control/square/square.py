@@ -31,6 +31,8 @@ class Square(Node):
         #     (-1.5, 1.5),     # Fourth corner
         #     (-2.0, -0.5)     # Return to start
         # ]
+
+        # Use hash waypoints to get results since hash is broken right now lol
         self.waypoints = [
             (-2.0, -0.5),    # Starting/spawn position
             (-1.5, -1.5),    # First corner

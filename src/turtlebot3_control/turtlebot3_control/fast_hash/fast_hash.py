@@ -74,12 +74,12 @@ class FastHash(Node):
         self.expected_start = (-2.0, -0.5)  # Starting/spawn position
         self.start_threshold = 0.3 
 
-    # Make sure twist vals are floats for Point just in case
-    def create_twist_msg(self, linear_x=0.0, angular_z=0.0):
-        cmd = Twist()
-        cmd.linear.x = float(linear_x)
-        cmd.angular.z = float(angular_z)
-        return cmd
+    # # Make sure twist vals are floats for Point just in case
+    # def create_twist_msg(self, linear_x=0.0, angular_z=0.0):
+    #     cmd = Twist()
+    #     cmd.linear.x = float(linear_x)
+    #     cmd.angular.z = float(angular_z)
+    #     return cmd
     
     def scan_callback(self,msg):
         # check for closest object in scan
@@ -95,9 +95,9 @@ class FastHash(Node):
 
 
     def e_stop(self):
-        stop_cmd = Twist()
-        stop_cmd.linear.x = float(0.0)
-        stop_cmd.angular.z = float(0.0)
+        stop_cmd = Twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        # stop_cmd.linear.x = float(0.0)
+        # stop_cmd.angular.z = float(0.0)
         self.cmd_vel_pub.publish(stop_cmd)
         self.get_logger().info('E-stop activated...')
 
@@ -121,10 +121,12 @@ class FastHash(Node):
         dx = float(self.goal_position.x - self.position.x)
         dy = float(self.goal_position.y - self.position.y)
         distance = math.sqrt(dx*dx + dy*dy)
-        
+        # calculate thresholds for current trajectory segment
+        self.distance_upper_threshold = 2.0 * distance / 3.0
+        self.distance_lower_threshold = distance / 3.0
         cmd = Twist()
         
-        if distance > self.distance_threshold:
+        if distance > self.distance_upper_threshold:
             # Move to point
             angle_to_goal = math.atan2(dy, dx)
             angle_error = angle_to_goal - self.heading
@@ -133,9 +135,20 @@ class FastHash(Node):
             while angle_error > math.pi: angle_error -= 2*math.pi
             while angle_error < -math.pi: angle_error += 2*math.pi
             
-            cmd.angular.z = float(self.angular_speed * 5.0 * angle_error) # Slow down as goal ange is approached: maybe try changing this 
+            cmd.angular.z = float(self.angular_speed * 1.5 * angle_error) # Slow down as goal ange is approached: maybe try changing this 
             cmd.linear.x = float(min(self.linear_speed * distance, 2.0)) # trying thresholding at 2 m/s to see if itll go faster
+        
+        if distance <= self.distance_lower_threshold:
+            # Move to point
+            angle_to_goal = math.atan2(dy, dx)
+            angle_error = angle_to_goal - self.heading
             
+            # Normalize angle so robot turns shortest way
+            while angle_error > math.pi: angle_error -= 2*math.pi
+            while angle_error < -math.pi: angle_error += 2*math.pi
+            
+            cmd.angular.z = float(self.angular_speed * 1.5 * angle_error) # Slow down as goal ange is approached: maybe try changing this 
+            cmd.linear.x = float(min(self.linear_speed * distance, 0.5))          
         else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
             heading_error = self.goal_heading - self.heading

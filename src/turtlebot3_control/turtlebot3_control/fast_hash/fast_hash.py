@@ -12,6 +12,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+# TODO: fix control loop idk whats wrong
 
 class FastHash(Node):
     def __init__(self):
@@ -42,14 +43,8 @@ class FastHash(Node):
         self.heading = 0.0
         self.goal_position = Point(x=0.0, y=0.0, z=0.0) 
         self.goal_heading = 0.0
-
-        # Control parameters
-        self.linear_speed = 2
-        self.angular_speed = 0.5
-        self.distance_threshold = 0.1
-        self.heading_threshold = 0.1
-
-        # ROS setup
+        
+        # ROS2 setup
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.odom_sub = self.create_subscription(
             Odometry,
@@ -73,6 +68,16 @@ class FastHash(Node):
         self.start_position_checked = False
         self.expected_start = (-2.0, -0.5)  # Starting/spawn position
         self.start_threshold = 0.3 
+        # Control parameters
+        self.linear_speed = 3.0       
+        self.angular_speed = 1.0      
+        self.angle_threshold = 0.05   
+        self.heading_threshold = 0.05 
+        
+        # Dynamic speed scaling
+        self.min_linear_speed = 0.5
+        self.max_linear_speed = 2.0   # Maximum speed
+        self.acceleration_factor = 1
 
     # # Make sure twist vals are floats for Point just in case
     # def create_twist_msg(self, linear_x=0.0, angular_z=0.0):
@@ -95,9 +100,9 @@ class FastHash(Node):
 
 
     def e_stop(self):
-        stop_cmd = Twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        # stop_cmd.linear.x = float(0.0)
-        # stop_cmd.angular.z = float(0.0)
+        stop_cmd = Twist()
+        stop_cmd.linear.x = float(0.0)
+        stop_cmd.angular.z = float(0.0)
         self.cmd_vel_pub.publish(stop_cmd)
         self.get_logger().info('E-stop activated...')
 
@@ -113,51 +118,69 @@ class FastHash(Node):
             next_next_point[1] - next_point[1],
             next_next_point[0] - next_point[0]
         )
-        
-    def control_loop(self):
-        # Calculate distance to goal
+    
+    @staticmethod
+    def normalize_angle(angle):
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        while angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
+  
+    def control_loop(self):        
+        # Compute distance to goal
         if self.has_collided:   # check each time step for collision status
             return
-        dx = float(self.goal_position.x - self.position.x)
-        dy = float(self.goal_position.y - self.position.y)
-        distance = math.sqrt(dx*dx + dy*dy)
-        # calculate thresholds for current trajectory segment
-        self.distance_upper_threshold = 2.0 * distance / 3.0
-        self.distance_lower_threshold = distance / 3.0
+            
+        dx = self.goal_position.x - self.position.x
+        dy = self.goal_position.y - self.position.y
+        self.distance = math.sqrt(dx*dx + dy*dy)        
+        angle_to_goal = math.atan2(dy, dx)
+        angle_error = self.normalize_angle(angle_to_goal - self.heading)
+
+
+        # Compute thresholds for current trajectory segment
+        self.distance_upper_threshold = 2.0 * self.distance / 3.0
+        self.distance_lower_threshold = self.distance / 3.0
+
         cmd = Twist()
         
-        if distance > self.distance_upper_threshold:
-            # Move to point
-            angle_to_goal = math.atan2(dy, dx)
-            angle_error = angle_to_goal - self.heading
+        if self.distance > self.distance_upper_threshold:
+            # # Move to point
+            # angle_to_goal = math.atan2(dy, dx)
+            # angle_error = angle_to_goal - self.heading 
+            # # Only rotate while stationary/at end of segment
+            # while angle_error > math.pi: angle_error -= 2*math.pi
+            # while angle_error < -math.pi: angle_error += 2*math.pi
+            if abs(angle_error) > self.angle_threshold:
+                cmd.angular.z = self.angular_speed * angle_error   # v = kx
+                cmd.linear.x = 0.0 
+            else:
+                cmd.angular.z = 0.0
+                speed = min(
+                    self.max_linear_speed,
+                    self.linear_speed * self.distance * self.acceleration_factor
+                    )
+                cmd.linear.x = float(speed)   
+
+            # start slowing down
+        elif self.distance <= self.distance_lower_threshold:
+            # angle_to_goal = math.atan2(dy, dx)
+            # angle_error = angle_to_goal - self.heading
             
-            # Normalize angle so robot turns shortest way
-            while angle_error > math.pi: angle_error -= 2*math.pi
-            while angle_error < -math.pi: angle_error += 2*math.pi
-            
-            cmd.angular.z = float(self.angular_speed * 1.5 * angle_error) # Slow down as goal ange is approached: maybe try changing this 
-            cmd.linear.x = float(min(self.linear_speed * distance, 2.0)) # trying thresholding at 2 m/s to see if itll go faster
-        
-        if distance <= self.distance_lower_threshold:
-            # Move to point
-            angle_to_goal = math.atan2(dy, dx)
-            angle_error = angle_to_goal - self.heading
-            
-            # Normalize angle so robot turns shortest way
-            while angle_error > math.pi: angle_error -= 2*math.pi
-            while angle_error < -math.pi: angle_error += 2*math.pi
-            
-            cmd.angular.z = float(self.angular_speed * 1.5 * angle_error) # Slow down as goal ange is approached: maybe try changing this 
-            cmd.linear.x = float(min(self.linear_speed * distance, 0.5))          
+            decel_factor = self.distance / self.distance_lower_threshold
+            cmd.angular.z = self.angular_speed * angle_error * decel_factor
+            cmd.linear.x = min(self.min_linear_speed,
+                               self.linear_speed * self.distance)
+
         else: # Once at waypoint, face the next one
-            # At waypoint - rotate to final heading
-            heading_error = self.goal_heading - self.heading
+            heading_error = self.normalize_angle(self.goal_heading - self.heading)
             while heading_error > math.pi: heading_error -= 2*math.pi
             while heading_error < -math.pi: heading_error += 2*math.pi
             
             if abs(heading_error) > self.heading_threshold: 
-                cmd.angular.z = self.angular_speed * 5.0 * heading_error
-                # cmd.angular.z = self.angular_speed
+                cmd.angular.z = self.angular_speed * heading_error
+
             else:
                 # Move to next waypoint
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
@@ -208,7 +231,6 @@ class FastHash(Node):
                 rclpy.shutdown()
                 return
             self.start_position_checked = True 
-
 
 
 def main(args=None):

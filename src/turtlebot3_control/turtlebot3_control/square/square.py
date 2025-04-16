@@ -57,7 +57,7 @@ class Square(Node):
         self.goal_position = Point()
         self.goal_heading = 0.0
 
-        # Control parameters
+        # Control parameters CHANGE THESE TO ADJUST CONTROLLER
         self.linear_speed = 2
         self.angular_speed = 0.7
         self.distance_threshold = 0.1

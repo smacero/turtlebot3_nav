@@ -58,7 +58,7 @@ class Square(Node):
         self.goal_heading = 0.0
 
         # Control parameters CHANGE THESE TO ADJUST CONTROLLER
-        self.linear_speed = 2
+        self.linear_speed = 1.5
         self.angular_speed = 0.7
         self.distance_threshold = 0.1
         self.heading_threshold = 0.1
@@ -108,8 +108,9 @@ class Square(Node):
             
             cmd.angular.z = self.angular_speed * angle_error # Slow down as goal ange is approached: maybe try changing this 
             cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
+            # cmd.linear.x = self.linear_speed * distance # keep this slow since we expect map qual to be lower with this trajectory
             self.cmd_vel_pub.publish(cmd)
-            
+
         else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
             heading_error = self.goal_heading - self.heading

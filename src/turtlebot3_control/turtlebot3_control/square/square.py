@@ -23,32 +23,32 @@ class Square(Node):
         self.get_logger().info('Starting square path...')
         
         # Define square path waypoints
-        # self.waypoints = [
-        #     (-2.0, -0.5),    # Starting/spawn position
-        #     (-1.5, -1.5),    # First corner
-        #     (1.5, -1.5),     # Second corner
-        #     (1.5, 1.5),      # Third corner
-        #     (-1.5, 1.5),     # Fourth corner
-        #     (-2.0, -0.5)     # Return to start
-        # ]
-
-        # Use hash waypoints to get results since hash is broken right now lol
         self.waypoints = [
             (-2.0, -0.5),    # Starting/spawn position
             (-1.5, -1.5),    # First corner
             (1.5, -1.5),     # Second corner
-            (1.5, -0.5) ,    # line up at column 1
-            (-2.0, -0.5),    # end of column 1
-            (-2.0, 0.5),     # line up at column 2
-            (1.5, 0.5),       # end of column 2
-            (1.5, 1.5),      # line up at top left edge of env
-            (0.5, 1.5),      # line up at row 1
-            (0.5, -1.5),       # end of row 1 
-            (-0.5, -1.5),    # line up at row 2
-            (-0.5, 1.5),      # end of row 2
-            (-1.5, 1.5),     # line up at bottom left edge of env
-            (-2.0, -0.5),    # return to start
+            (1.5, 1.5),      # Third corner
+            (-1.5, 1.5),     # Fourth corner
+            (-2.0, -0.5)     # Return to start
         ]
+
+        # # Use hash waypoints to get results since hash is broken right now lol
+        # self.waypoints = [
+        #     (-2.0, -0.5),    # Starting/spawn position
+        #     (-1.5, -1.5),    # First corner
+        #     (1.5, -1.5),     # Second corner
+        #     (1.5, -0.5) ,    # line up at column 1
+        #     (-2.0, -0.5),    # end of column 1
+        #     (-2.0, 0.5),     # line up at column 2
+        #     (1.5, 0.5),       # end of column 2
+        #     (1.5, 1.5),      # line up at top left edge of env
+        #     (0.5, 1.5),      # line up at row 1
+        #     (0.5, -1.5),       # end of row 1 
+        #     (-0.5, -1.5),    # line up at row 2
+        #     (-0.5, 1.5),      # end of row 2
+        #     (-1.5, 1.5),     # line up at bottom left edge of env
+        #     (-2.0, -0.5),    # return to start
+        # ]
         self.current_waypoint = 0
 
         # Robot state
@@ -87,7 +87,8 @@ class Square(Node):
             next_next_point[1] - next_point[1],
             next_next_point[0] - next_point[0]
         )
-        
+
+   
     def control_loop(self):
         # Calculate distance to goal
         dx = self.goal_position.x - self.position.x
@@ -107,6 +108,7 @@ class Square(Node):
             
             cmd.angular.z = self.angular_speed * angle_error # Slow down as goal ange is approached: maybe try changing this 
             cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
+            self.cmd_vel_pub.publish(cmd)
             
         else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
@@ -116,16 +118,30 @@ class Square(Node):
             
             if abs(heading_error) > self.heading_threshold: 
                 cmd.angular.z = self.angular_speed * heading_error
+                self.cmd_vel_pub.publish(cmd)
             else:
                 # Move to next waypoint
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
                 if self.current_waypoint == 0:
-                    self.get_logger().info('Square path completed!')
+                    self.get_logger().info('Square path completed! Stopping robot...')
+                    cmd.linear.x = 0.0
+                    cmd.angular.z = 0.0
+                    self.cmd_vel_pub.publish(cmd)
+                    self.get_logger().info('Destroying node...')
+                    self.timer.cancel()
+
+                    # while abs(angle_error) > self.heading_threshold:
+                    #     cmd.angular.z = self.angular_speed * angle_error 
+                    # if abs(angle_error) <= self.heading_threshold:
+                    #     cmd.angular.z = 0.0
+                    #     cmd.linear.x = 0.0
+                    #     self.get_logger().info('Square path completed! Shutting down...')
+                    #     # Stop the robot and exit
+                    #     self.timer.cancel()
                     self.destroy_node()
                     return
                 self.set_next_goal()
-                
-        self.cmd_vel_pub.publish(cmd)
+        
     
     def euler_from_quaternion(self, q):
         sinr_cosp = 2.0 * (q.w * q.x + q.y * q.z)

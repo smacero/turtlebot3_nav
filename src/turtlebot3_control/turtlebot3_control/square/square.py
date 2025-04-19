@@ -12,10 +12,9 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import rclpy
 from rclpy.node import Node
-# from scipy.spatial.transform import Rotation as R
+from sensor_msgs.msg import LaserScan
 
 # robot spawns in at x = -1.999464 y = -0.500002 z = 0.008510 roll = 0.000105 pitch = 0.006040
-
 
 class Square(Node):
     def __init__(self):
@@ -73,7 +72,40 @@ class Square(Node):
         
         # Start moving
         self.timer = self.create_timer(0.1, self.control_loop)
-        self.set_next_goal()
+        self.set_next_goal()        
+        
+        # Collision detection parameters
+        self.collision_threshold = 0.3
+        self.has_collided = False
+        self.scan_sub = self.create_subscription(
+            LaserScan,
+            'scan',
+            self.scan_callback,
+            rclpy.qos.qos_profile_sensor_data
+        )
+        self.start_position_checked = False
+        self.expected_start = (-2.0, -0.5)  # Starting/spawn position
+        self.start_threshold = 0.3 
+
+    def scan_callback(self,msg):
+        # check for closest object in scan
+        min_distance = min(msg.ranges)
+        if min_distance < self.collision_threshold and not self.has_collided:  # Only trigger once
+            self.has_collided = True
+            self.get_logger().info('Collision detected! Stopping TB3..')
+            self.e_stop()
+            self.get_logger().info('Shutting down node...')
+            self.destroy_node()  # Stop the node
+            rclpy.shutdown()     # Exit ROS2
+            return
+
+
+    def e_stop(self):
+        stop_cmd = Twist()
+        stop_cmd.linear.x = float(0.0)
+        stop_cmd.angular.z = float(0.0)
+        self.cmd_vel_pub.publish(stop_cmd)
+        self.get_logger().info('E-stop activated...')
 
     def set_next_goal(self):
         next_point = self.waypoints[self.current_waypoint]
@@ -107,8 +139,8 @@ class Square(Node):
             while angle_error < -math.pi: angle_error += 2*math.pi
             
             cmd.angular.z = self.angular_speed * angle_error # Slow down as goal ange is approached: maybe try changing this 
-            cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
-            # cmd.linear.x = self.linear_speed * distance # keep this slow since we expect map qual to be lower with this trajectory
+            # cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
+            cmd.linear.x = self.linear_speed * distance # keep this slow since we expect map qual to be lower with this trajectory
             self.cmd_vel_pub.publish(cmd)
 
         else: # Once at waypoint, face the next one

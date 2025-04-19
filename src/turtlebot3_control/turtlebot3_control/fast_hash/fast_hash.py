@@ -3,7 +3,7 @@ inuitively, given the geometry of turtlebot world, you might guess that followin
 hash trajectory would generate a complete map, but thats super long and would take a long time. 
 but what if we went fast? I dont think the turtle would tip over with reasonably fast speeds. 
 '''
-
+#  TODO: implement collision avoidance from here to square.py, 
 import math
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Twist

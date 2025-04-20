@@ -21,7 +21,7 @@ import time
 class Square(Node):
     def __init__(self):
         super().__init__('square') # shoudl match .py file name
-        self.get_logger().info('Starting square path...')
+        self.get_logger().info('Starting path...')
         
         # Square path waypoints. Comments these out if you want to use the hash waypoints
         self.waypoints = [
@@ -49,7 +49,7 @@ class Square(Node):
         #     (-0.5, 1.5),      # end of row 2
         #     (-1.5, 1.5),     # line up at bottom left edge of env
         #     (-2.0, -0.5),    # return to start
-        # ]
+        # ] 
         self.current_waypoint = 0
 
         # Robot state
@@ -158,7 +158,7 @@ class Square(Node):
                 # Move to next waypoint
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
                 if self.current_waypoint == 0:
-                    self.get_logger().info('Square path completed! Stopping robot...')
+                    self.get_logger().info('Path completed! Stopping robot...')
                     cmd.linear.x = 0.0
                     cmd.angular.z = 0.0
                     

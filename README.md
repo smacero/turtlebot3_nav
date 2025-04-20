@@ -3,7 +3,7 @@
 
 
 ### Cloning
-git clone -b savannah https://github.com/YOUR_USERNAME/turtlebot3_nav.git .
+git clone -b savannah https://github.com/smacero/turtlebot3_nav.git .
 
 # Install dependencies
 cd ..

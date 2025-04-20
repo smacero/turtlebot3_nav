@@ -23,7 +23,7 @@ class Square(Node):
         super().__init__('square') # shoudl match .py file name
         self.get_logger().info('Starting square path...')
         
-        # Define square path waypoints
+        # Square path waypoints. Comments these out if you want to use the hash waypoints
         self.waypoints = [
             (-2.0, -0.5),    # Starting/spawn position
             (-1.5, -1.5),    # First corner
@@ -33,7 +33,7 @@ class Square(Node):
             (-2.0, -0.5)     # Return to start
         ]
 
-        # # Use hash waypoints to get results since hash is broken right now lol
+        # # Hash waypoints. Uncomment these if you want to use the hash waypoints
         # self.waypoints = [
         #     (-2.0, -0.5),    # Starting/spawn position
         #     (-1.5, -1.5),    # First corner
@@ -72,7 +72,7 @@ class Square(Node):
             self.odom_callback,
             10)
         
-        # Start moving
+        # Set frequency for control loop
         self.timer = self.create_timer(0.1, self.control_loop)
         self.set_next_goal()        
         
@@ -101,7 +101,6 @@ class Square(Node):
             self.destroy_node()  # Stop the node
             rclpy.shutdown()     # Exit ROS2
             return
-
 
     def e_stop(self):
         stop_cmd = Twist()
@@ -146,9 +145,6 @@ class Square(Node):
             
             cmd.angular.z = self.angular_speed * angle_error 
             cmd.linear.x = min(self.linear_speed * distance, 0.2) 
-            # cmd.linear.x = self.linear_speed * distance
-            # if not self.has_collided:
-            #     self.cmd_vel_pub.publish(cmd)
 
         else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
@@ -158,8 +154,6 @@ class Square(Node):
             
             if abs(heading_error) > self.heading_threshold: 
                 cmd.angular.z = self.angular_speed * heading_error
-                # if not self.has_collided:
-                #     self.cmd_vel_pub.publish(cmd)
             else:
                 # Move to next waypoint
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
@@ -168,7 +162,6 @@ class Square(Node):
                     cmd.linear.x = 0.0
                     cmd.angular.z = 0.0
                     
-
                     if not self.has_collided:
                         self.cmd_vel_pub.publish(cmd)
                         time.sleep(0.5)

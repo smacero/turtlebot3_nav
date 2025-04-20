@@ -13,6 +13,8 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+import time
+
 
 # robot spawns in at x = -1.999464 y = -0.500002 z = 0.008510 roll = 0.000105 pitch = 0.006040
 
@@ -75,7 +77,7 @@ class Square(Node):
         self.set_next_goal()        
         
         # Collision detection parameters
-        self.collision_threshold = 0.3
+        self.collision_threshold = 0.05
         self.has_collided = False
         self.scan_sub = self.create_subscription(
             LaserScan,
@@ -94,6 +96,7 @@ class Square(Node):
             self.has_collided = True
             self.get_logger().info('Collision detected! Stopping TB3..')
             self.e_stop()
+            time.sleep(1.0)
             self.get_logger().info('Shutting down node...')
             self.destroy_node()  # Stop the node
             rclpy.shutdown()     # Exit ROS2
@@ -122,11 +125,14 @@ class Square(Node):
 
    
     def control_loop(self):
+
+        if self.has_collided:   # check each time step for collision status
+            return
+        
         # Calculate distance to goal
         dx = self.goal_position.x - self.position.x
         dy = self.goal_position.y - self.position.y
         distance = math.sqrt(dx*dx + dy*dy)
-        
         cmd = Twist()
         
         if distance > self.distance_threshold:
@@ -138,10 +144,11 @@ class Square(Node):
             while angle_error > math.pi: angle_error -= 2*math.pi
             while angle_error < -math.pi: angle_error += 2*math.pi
             
-            cmd.angular.z = self.angular_speed * angle_error # Slow down as goal ange is approached: maybe try changing this 
-            # cmd.linear.x = min(self.linear_speed * distance, 0.2) # keep this slow since we expect map qual to be lower with this trajectory
-            cmd.linear.x = self.linear_speed * distance # keep this slow since we expect map qual to be lower with this trajectory
-            self.cmd_vel_pub.publish(cmd)
+            cmd.angular.z = self.angular_speed * angle_error 
+            cmd.linear.x = min(self.linear_speed * distance, 0.2) 
+            # cmd.linear.x = self.linear_speed * distance
+            # if not self.has_collided:
+            #     self.cmd_vel_pub.publish(cmd)
 
         else: # Once at waypoint, face the next one
             # At waypoint - rotate to final heading
@@ -151,7 +158,8 @@ class Square(Node):
             
             if abs(heading_error) > self.heading_threshold: 
                 cmd.angular.z = self.angular_speed * heading_error
-                self.cmd_vel_pub.publish(cmd)
+                # if not self.has_collided:
+                #     self.cmd_vel_pub.publish(cmd)
             else:
                 # Move to next waypoint
                 self.current_waypoint = (self.current_waypoint + 1) % len(self.waypoints) # update waypoint index
@@ -159,22 +167,20 @@ class Square(Node):
                     self.get_logger().info('Square path completed! Stopping robot...')
                     cmd.linear.x = 0.0
                     cmd.angular.z = 0.0
-                    self.cmd_vel_pub.publish(cmd)
+                    
+
+                    if not self.has_collided:
+                        self.cmd_vel_pub.publish(cmd)
+                        time.sleep(0.5)
+
                     self.get_logger().info('Destroying node...')
                     self.timer.cancel()
-
-                    # while abs(angle_error) > self.heading_threshold:
-                    #     cmd.angular.z = self.angular_speed * angle_error 
-                    # if abs(angle_error) <= self.heading_threshold:
-                    #     cmd.angular.z = 0.0
-                    #     cmd.linear.x = 0.0
-                    #     self.get_logger().info('Square path completed! Shutting down...')
-                    #     # Stop the robot and exit
-                    #     self.timer.cancel()
                     self.destroy_node()
                     return
-                self.set_next_goal()
-        
+                self.set_next_goal()    
+
+        if not self.has_collided:
+            self.cmd_vel_pub.publish(cmd)
     
     def euler_from_quaternion(self, q):
         sinr_cosp = 2.0 * (q.w * q.x + q.y * q.z)

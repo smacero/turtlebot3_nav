@@ -1,4 +1,20 @@
-'''robot spawns in at x = -1.999464 y = -0.500002 z = 0.008510 roll = 0.000105 pitch = 0.006040
+'''robot spawns in at 
+sample 1
+    x = -1.999464 
+    y = -0.500002 
+    z = 0.008510 
+    roll = 0.000105 
+    pitch = 0.006040
+    yaw = 0.00
+
+ sample 2
+    x = -1.999942
+    y = -0.500001
+    z = 0.008528
+    roll = 0.000098
+    pitch = 0.005738
+    yaw = 0.000000
+ 
 
 After running square.py with initial conditions of:
     standard default env configuration from launching turtlebot3_gazebo.launch.py
